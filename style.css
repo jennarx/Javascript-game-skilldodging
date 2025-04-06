@@ -1,48 +1,49 @@
-/* Restoring Original CSS */
+/* Full CSS */
 body {
-    display: flex; /* Re-add flexbox for centering */
-    justify-content: center;
+    display: flex;
+    /* Changed justify-content to space-around to make room for stats */
+    justify-content: space-around;
     align-items: center;
     min-height: 100vh;
-    background-color: #f0f0f0; /* Original light grey background */
+    background-color: #f0f0f0;
     margin: 0;
     font-family: sans-serif;
+    overflow: hidden;
 }
 
 #game-area {
     width: 400px;
     height: 600px;
-    border: 3px solid black; /* Original border */
-    background-color: #d3eaf2; /* Original light blue background */
-    position: relative;
+    border: 3px solid black;
+    background-color: #d3eaf2;
+    position: relative; /* Keep relative for player/obstacles */
     overflow: hidden;
-    /* Remove margin added during testing */
+    /* Removed centering margin as body flex handles it */
 }
 
 #player {
     width: 40px;
     height: 40px;
-    background-color: blue; /* Original color */
+    background-color: blue;
     position: absolute;
     bottom: 10px;
     /* 'left' style set by JavaScript */
 }
 
-/* Uncomment/restore obstacle style */
 .obstacle {
     width: 30px;
     height: 30px;
     background-color: red;
     position: absolute;
     top: 0px;
-    left: 100px; /* Default, overridden by JS */
+    left: 100px; /* Default */
 }
 
-/* Uncomment/restore Game Over message style */
 #game-over-message {
-    position: absolute;
+    position: absolute; /* Relative to body now potentially */
+    /* Adjust positioning maybe relative to game-area if needed */
     top: 50%;
-    left: 50%;
+    left: 50%; /* This might need tweaking if body isn't fully containing */
     transform: translate(-50%, -50%);
     color: #d90429;
     font-size: 2.5em;
@@ -53,26 +54,74 @@ body {
     border: 3px solid #d90429;
     border-radius: 15px;
     z-index: 10;
-    /* display: none; controlled by JS */
 }
 
-/* Uncomment/restore Restart button style */
 #restart-button {
     position: absolute;
-    top: 65%; /* Below game over message */
+    top: 65%;
     left: 50%;
     transform: translate(-50%, -50%);
     padding: 15px 30px;
     font-size: 1.2em;
     cursor: pointer;
-    background-color: #4CAF50; /* Green */
+    background-color: #4CAF50;
     color: white;
     border: none;
     border-radius: 8px;
     z-index: 10;
-    /* display: none; controlled by JS */
 }
 
 #restart-button:hover {
-    background-color: #45a049; /* Darker green */
+    background-color: #45a049;
+}
+
+/* Positioning for Score Display within Stats Area */
+#score-display {
+    /* position: absolute; -- Now relative to stats-area */
+    /* top: 20px; */
+    /* left: 20px; */
+    font-size: 1.8em;
+    color: #1d3557;
+    font-weight: bold;
+    margin-bottom: 20px; /* Add space below score */
+    text-align: center;
+}
+
+/* ADDED: Container for Stats */
+#stats-area {
+    width: 200px; /* Adjust width as needed */
+    padding: 15px;
+    background-color: #e0e0e0;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    /* This will be one of the flex items in body */
+}
+
+#high-scores, #recent-scores {
+    margin-top: 15px;
+}
+
+#high-scores h4, #recent-scores h4 {
+    margin-bottom: 5px;
+    text-align: center;
+    color: #333;
+}
+
+/* Style for the lists */
+#top-scores-list, #recent-scores-list {
+    list-style-position: inside; /* Numbers/bullets inside */
+    padding-left: 10px;
+    margin-left: 0;
+}
+#top-scores-list li, #recent-scores-list li {
+    margin-bottom: 3px;
+    font-size: 1.1em;
+}
+
+/* Specific list types */
+#top-scores-list {
+    list-style-type: decimal; /* Numbered list */
+}
+#recent-scores-list {
+    list-style-type: disc; /* Bulleted list */
 }
