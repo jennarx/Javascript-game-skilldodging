@@ -1,4 +1,78 @@
+/* Restoring Original CSS */
 body {
-    background-color: #f0f0f0; /* Light grey background */
+    display: flex; /* Re-add flexbox for centering */
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background-color: #f0f0f0; /* Original light grey background */
+    margin: 0;
     font-family: sans-serif;
+}
+
+#game-area {
+    width: 400px;
+    height: 600px;
+    border: 3px solid black; /* Original border */
+    background-color: #d3eaf2; /* Original light blue background */
+    position: relative;
+    overflow: hidden;
+    /* Remove margin added during testing */
+}
+
+#player {
+    width: 40px;
+    height: 40px;
+    background-color: blue; /* Original color */
+    position: absolute;
+    bottom: 10px;
+    /* 'left' style set by JavaScript */
+}
+
+/* Uncomment/restore obstacle style */
+.obstacle {
+    width: 30px;
+    height: 30px;
+    background-color: red;
+    position: absolute;
+    top: 0px;
+    left: 100px; /* Default, overridden by JS */
+}
+
+/* Uncomment/restore Game Over message style */
+#game-over-message {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #d90429;
+    font-size: 2.5em;
+    font-weight: bold;
+    text-align: center;
+    background-color: rgba(237, 242, 244, 0.85);
+    padding: 30px;
+    border: 3px solid #d90429;
+    border-radius: 15px;
+    z-index: 10;
+    /* display: none; controlled by JS */
+}
+
+/* Uncomment/restore Restart button style */
+#restart-button {
+    position: absolute;
+    top: 65%; /* Below game over message */
+    left: 50%;
+    transform: translate(-50%, -50%);
+    padding: 15px 30px;
+    font-size: 1.2em;
+    cursor: pointer;
+    background-color: #4CAF50; /* Green */
+    color: white;
+    border: none;
+    border-radius: 8px;
+    z-index: 10;
+    /* display: none; controlled by JS */
+}
+
+#restart-button:hover {
+    background-color: #45a049; /* Darker green */
 }
