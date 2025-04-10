@@ -4,366 +4,131 @@ const player = document.getElementById('player');
 const gameOverMessage = document.getElementById('game-over-message');
 const restartButton = document.getElementById('restart-button');
 const scoreDisplay = document.getElementById('score-display');
-const topScoresListElement = document.getElementById('top-scores-list'); // Ref for Top 5 list
-const recentScoresListElement = document.getElementById('recent-scores-list'); // Ref for Recent 5 list
+const topScoresListElement = document.getElementById('top-scores-list');
+const recentScoresListElement = document.getElementById('recent-scores-list');
+const themeSelector = document.getElementById('theme-selector');
+const resetScoresButton = document.getElementById('reset-scores-button');
+const confirmResetDialog = document.getElementById('confirm-reset-dialog');
+const confirmResetYesButton = document.getElementById('confirm-reset-yes');
+const confirmResetNoButton = document.getElementById('confirm-reset-no');
+const pauseMessage = document.getElementById('pause-message');
 
 // --- Game State, Score & Interval IDs ---
-let isGameOver = false;
-let creationIntervalId = null;
-let movementIntervalId = null;
-let scoreIntervalId = null;
-let score = 0;
+let isGameOver = false; let isPaused = false; let creationIntervalId = null; let movementIntervalId = null; let score = 0;
 
 // --- Score Storage ---
-const TOP_SCORES_KEY = 'dodgerTopScores'; // Key for localStorage
-const RECENT_SCORES_KEY = 'dodgerRecentScores'; // Key for localStorage
-let topScores = [];         // Array to hold top scores loaded from storage
-let recentScores = [];      // Array to hold recent scores loaded from storage
-const MAX_SCORES_STORED = 5; // Store top 5 / recent 5
+const TOP_SCORES_KEY = 'dodgerTopScores'; const RECENT_SCORES_KEY = 'dodgerRecentScores'; let topScores = []; let recentScores = []; const MAX_SCORES_STORED = 5;
+
+// --- Theme Management ---
+const THEME_STORAGE_KEY = 'dodgerTheme'; const availableThemes = ['space', 'deep-sea']; let currentTheme = 'space';
+
+// --- Asset Definitions ---
+const obstacleImages = { space: ['images/space_obstacle_asteroid.png', 'images/space_obstacle_meteor.png', 'images/space_obstacle_debris.png'], 'deep-sea': ['images/sea_obstacle_anchor.png', 'images/sea_obstacle_mine.png', 'images/sea_obstacle_rock.png'] };
 
 // --- Player Properties ---
-const playerSpeed = 8; // Base speed for smooth sliding
-let playerLeft; // Current position, set in startGame
+const playerSpeed = 8; let playerLeft;
 
 // --- Player Movement State ---
-let isMovingLeft = false; // Tracks if left key is currently held
-let isMovingRight = false; // Tracks if right key is currently held
+let isMovingLeft = false; let isMovingRight = false;
 
 // --- Game Area & Element Dimensions ---
-let gameAreaWidth;
-let playerWidth;
-let obstacleWidth = 30; // Match CSS
-let obstacleHeight = 30; // Match CSS
-let initialPlayerLeft; // Set in startGame
+let gameAreaWidth; let playerWidth; let obstacleWidth = 40; let obstacleHeight = 40; let initialPlayerLeft;
 
 // --- Obstacle Settings ---
-const BASE_OBSTACLE_SPEED = 3; // Starting speed
-let currentObstacleSpeed; // Current speed, increases over time
-const obstacleCreationInterval = 1200; // Frequency remains constant for now
-let obstacles = []; // Array to track active obstacles
+const BASE_OBSTACLE_SPEED = 3; let currentObstacleSpeed; const BASE_OBSTACLE_CREATION_INTERVAL = 1200; let currentObstacleCreationInterval; let obstacles = [];
 
 // --- Difficulty Settings ---
-const scoreThresholdForSpeedIncrease = 500; // Increase speed every 500 points
-const speedIncrement = 0.5;                 // How much to increase speed by
-const maxObstacleSpeed = 15;                // Optional: Set a maximum speed limit
+const scoreThresholdForSpeedIncrease = 5; const speedIncrement = 0.5; const maxObstacleSpeed = 15; const scoreThresholdForFrequencyIncrease = 5; const frequencyDecrement = 150; const minObstacleCreationInterval = 300;
 
-// --- Score Settings ---
-const scoreIncrementInterval = 100; // Milliseconds between score increases
-const pointsPerIncrement = 10;      // Points added each interval
+// --- Hitbox Scaling Factor ---
+const HITBOX_SCALE = 0.55;
 
 
 // --- localStorage Helper Functions ---
-function getScoresFromStorage(key) {
-    try {
-        const scoresJSON = localStorage.getItem(key);
-        if (scoresJSON) {
-            const scores = JSON.parse(scoresJSON);
-            // Basic validation that it's an array of numbers
-            if (Array.isArray(scores) && scores.every(item => typeof item === 'number')) {
-                return scores;
-            } else {
-                 console.warn(`Data in localStorage for key "${key}" is not a valid score array. Resetting.`);
-                 return [];
-            }
-        }
-    } catch (error) {
-        console.error(`Error parsing scores from localStorage (key: ${key}):`, error);
-    }
-    return []; // Return empty array if not found or error
-}
-
-function saveScoresToStorage(key, scoresArray) {
-    try {
-        // Ensure it's always an array before saving
-        if (!Array.isArray(scoresArray)) {
-             console.error(`Attempted to save non-array to storage (key: ${key})`);
-             return;
-        }
-        localStorage.setItem(key, JSON.stringify(scoresArray));
-    } catch (error) {
-        // Handle potential storage quota errors etc.
-        console.error(`Error saving scores to localStorage (key: ${key}):`, error);
-        alert("Could not save scores. Storage might be full.");
-    }
-}
-
+function getScoresFromStorage(key) { try { const d=localStorage.getItem(key); if(d){const s=JSON.parse(d); if(Array.isArray(s)&&s.every(i=>typeof i==='number')){return s;}else{console.warn(`Invalid data for key ${key}`);return[];}} }catch(e){console.error(`Err parse ${key}`,e);} return[];}
+function saveScoresToStorage(key, arr) { try { if(!Array.isArray(arr)){return;} localStorage.setItem(key,JSON.stringify(arr));} catch(e){console.error(`Err save ${key}`,e);}}
 
 // --- Display Update Functions ---
-function displayScores(scoresArray, listElement, placeholder = '--') {
-    if (!listElement) {
-        console.error("Attempted to display scores to a non-existent element.");
-        return; // Exit if element doesn't exist
-    }
-    listElement.innerHTML = ''; // Clear previous list items
+function displayScores(scoresArray, listElement, placeholder = '--') { if(!listElement)return; listElement.innerHTML=''; const displayArr=scoresArray.slice(0,MAX_SCORES_STORED); displayArr.forEach(s=>{const li=document.createElement('li');li.textContent=s;listElement.appendChild(li);}); for(let i=displayArr.length;i<MAX_SCORES_STORED;i++){const li=document.createElement('li');li.textContent=placeholder;listElement.appendChild(li);}}
+function updateScoreDisplay() { if(scoreDisplay)scoreDisplay.textContent=`Score: ${score}`;}
 
-    const scoresToDisplay = scoresArray.slice(0, MAX_SCORES_STORED);
+// --- Theme Functions ---
+function applyTheme(themeName) { if(!availableThemes.includes(themeName))themeName='space'; availableThemes.forEach(t=>document.body.classList.remove(`theme-${t}`)); document.body.classList.add(`theme-${themeName}`); currentTheme=themeName; localStorage.setItem(THEME_STORAGE_KEY,themeName); updateThemeButtonStyles();}
+function loadTheme() { const saved=localStorage.getItem(THEME_STORAGE_KEY); applyTheme(saved||'space');}
+function updateThemeButtonStyles() { if(!themeSelector)return; const btns=themeSelector.querySelectorAll('.theme-button'); btns.forEach(b=>{b.classList.toggle('active',b.dataset.theme===currentTheme);});}
 
-    // Populate with actual scores
-    scoresToDisplay.forEach(s => {
-        const li = document.createElement('li');
-        li.textContent = s; // Display the score
-        listElement.appendChild(li);
-    });
-
-    // Add placeholder list items if fewer than MAX_SCORES_STORED
-    for (let i = scoresToDisplay.length; i < MAX_SCORES_STORED; i++) {
-         const li = document.createElement('li');
-         li.textContent = placeholder;
-         listElement.appendChild(li);
-     }
-}
-
-
-// --- Key Handlers for Smooth Movement ---
-function handleSmoothKeyDown(event) {
-    if (isGameOver) return;
-    if (event.key === 'ArrowLeft') {
-        isMovingLeft = true;
-    } else if (event.key === 'ArrowRight') {
-        isMovingRight = true;
-    }
-}
-
-function handleSmoothKeyUp(event) {
-    if (event.key === 'ArrowLeft') {
-        isMovingLeft = false;
-    } else if (event.key === 'ArrowRight') {
-        isMovingRight = false;
-    }
-}
-// Add Event Listeners (Globally)
-document.addEventListener('keydown', handleSmoothKeyDown);
-document.addEventListener('keyup', handleSmoothKeyUp);
-
+// --- Key Handlers ---
+function handleSmoothKeyDown(event) { if(isGameOver||isPaused)return; if(event.key==='ArrowLeft')isMovingLeft=true; else if(event.key==='ArrowRight')isMovingRight=true;}
+function handleSmoothKeyUp(event) { if(event.key==='ArrowLeft')isMovingLeft=false; else if(event.key==='ArrowRight')isMovingRight=false;}
+function handlePauseKey(event) { if(isGameOver)return; if(event.key==='Escape'||event.key==='p'||event.key==='P'){if(isPaused){resumeGame();}else{pauseGame();}}}
 
 // --- Obstacle Logic ---
-function createObstacle() {
-    if (isGameOver || !gameAreaWidth || !obstacleWidth) return;
+function createObstacle() { if(isGameOver||isPaused||!gameAreaWidth||!obstacleWidth)return; const themeImgs=obstacleImages[currentTheme]; if(!themeImgs||!themeImgs.length)return; const idx=Math.floor(Math.random()*themeImgs.length); const src=themeImgs[idx]; const obs=document.createElement('div'); obs.classList.add('obstacle'); obs.style.backgroundImage=`url('${src}')`; const maxL=gameAreaWidth-obstacleWidth; const randL=Math.floor(Math.random()*(maxL+1)); if(maxL<0)return; obs.style.left=`${randL}px`; obs.style.top='0px'; gameArea.appendChild(obs); obstacles.push(obs);}
 
-    const obstacle = document.createElement('div');
-    obstacle.classList.add('obstacle');
-    const maxLeft = gameAreaWidth - obstacleWidth;
-    const randomLeft = Math.floor(Math.random() * (maxLeft + 1));
-
-    if (maxLeft < 0) {
-         console.error("Cannot create obstacle - maxLeft is negative.", {gameAreaWidth, obstacleWidth});
-         return;
-    }
-    obstacle.style.left = randomLeft + 'px';
-    obstacle.style.top = '0px';
-    gameArea.appendChild(obstacle);
-    obstacles.push(obstacle);
-}
-
-// --- Combined Movement Update Function (Player + Obstacles) ---
-function moveObstacles() {
-    if (isGameOver) return;
-
-    // --- Player Smooth Sliding Update ---
-    let dx = 0;
-    if (isMovingLeft && !isMovingRight) dx = -playerSpeed;
-    else if (isMovingRight && !isMovingLeft) dx = playerSpeed;
-
-    if (dx !== 0 && playerWidth && gameAreaWidth) {
-        let newLeft = playerLeft + dx;
-        if (newLeft < 0) newLeft = 0;
-        const maxLeft = gameAreaWidth - playerWidth;
-        if (newLeft > maxLeft) newLeft = maxLeft;
-        if (newLeft !== playerLeft) {
-            playerLeft = newLeft;
-            player.style.left = playerLeft + 'px';
-        }
-    }
-    // --- End Player Smooth Sliding Update ---
-
-    // --- Existing Obstacle Movement ---
-    for (let i = obstacles.length - 1; i >= 0; i--) {
-        const obstacle = obstacles[i];
-        if (checkCollision(player, obstacle)) {
-            gameOver();
-            return;
-        }
-        let currentTop = obstacle.offsetTop;
-        let newTop = currentTop + currentObstacleSpeed;
-        obstacle.style.top = newTop + 'px';
-        const areaHeight = gameArea.offsetHeight;
-        if (areaHeight > 0 && newTop > areaHeight) {
-             obstacle.remove();
-             obstacles.splice(i, 1);
-        }
-    }
-}
+// --- Combined Movement Update Function ---
+function moveObstacles() { if(isGameOver||isPaused)return; let dx=0; if(isMovingLeft&&!isMovingRight)dx=-playerSpeed; else if(isMovingRight&&!isMovingLeft)dx=playerSpeed; if(dx!==0&&playerWidth&&gameAreaWidth){let nL=playerLeft+dx; if(nL<0)nL=0; const maxL=gameAreaWidth-playerWidth; if(nL>maxL)nL=maxL; if(nL!==playerLeft){playerLeft=nL;player.style.left=`${playerLeft}px`;}} for(let i=obstacles.length-1;i>=0;i--){const o=obstacles[i]; if(checkCollision(player,o)){gameOver();return;} let ct=o.offsetTop; let nt=ct+currentObstacleSpeed; o.style.top=`${nt}px`; const ah=gameArea.offsetHeight; if(ah>0&&nt>ah){score++;updateScoreDisplay(); let ss=Math.floor(score/scoreThresholdForSpeedIncrease); let ts=BASE_OBSTACLE_SPEED+(ss*speedIncrement); ts=Math.min(ts,maxObstacleSpeed); if(ts>currentObstacleSpeed){currentObstacleSpeed=ts;console.log(`Score:${score}, Speed->${currentObstacleSpeed}`);} let fs=Math.floor(score/scoreThresholdForFrequencyIncrease); let ti=BASE_OBSTACLE_CREATION_INTERVAL-(fs*frequencyDecrement); ti=Math.max(ti,minObstacleCreationInterval); if(ti<currentObstacleCreationInterval){currentObstacleCreationInterval=ti;console.log(`Score:${score}, Interval->${currentObstacleCreationInterval}ms`); clearInterval(creationIntervalId); creationIntervalId=setInterval(createObstacle,currentObstacleCreationInterval);} o.remove();obstacles.splice(i,1);}}}
 
 // --- Collision Detection Function ---
-function checkCollision(element1, element2) {
-    if (!element1 || !element2) return false;
-    const rect1 = element1.getBoundingClientRect();
-    const rect2 = element2.getBoundingClientRect();
+function checkCollision(e1,e2){if(!e1||!e2)return false; const r1=e1.getBoundingClientRect(); const r2=e2.getBoundingClientRect(); if(r1.width===0||r1.height===0||r2.width===0||r2.height===0)return false; const w1=r1.width*HITBOX_SCALE; const h1=r1.height*HITBOX_SCALE; const iX1=(r1.width-w1)/2; const iY1=(r1.height-h1)/2; const w2=r2.width*HITBOX_SCALE; const h2=r2.height*HITBOX_SCALE; const iX2=(r2.width-w2)/2; const iY2=(r2.height-h2)/2; const ir1={l:r1.left+iX1,r:r1.right-iX1,t:r1.top+iY1,b:r1.bottom-iY1}; const ir2={l:r2.left+iX2,r:r2.right-iX2,t:r2.top+iY2,b:r2.bottom-iY2}; const nO=ir1.r<ir2.l||ir1.l>ir2.r||ir1.b<ir2.t||ir1.t>ir2.b; return !nO;}
 
-    if (rect1.width === 0 || rect1.height === 0 || rect2.width === 0 || rect2.height === 0) {
-        return false;
-    }
-    const noOverlap =
-        rect1.right < rect2.left ||
-        rect1.left > rect2.right ||
-        rect1.bottom < rect2.top ||
-        rect1.top > rect2.bottom;
+// --- Pause/Resume Functions ---
+function pauseGame(){if(isPaused||isGameOver)return; isPaused=true; clearInterval(creationIntervalId); clearInterval(movementIntervalId); if(pauseMessage)pauseMessage.style.display='block'; console.log("Paused");}
+function resumeGame(){if(!isPaused||isGameOver)return; isPaused=false; if(pauseMessage)pauseMessage.style.display='none'; clearInterval(creationIntervalId); clearInterval(movementIntervalId); creationIntervalId=setInterval(createObstacle,currentObstacleCreationInterval); movementIntervalId=setInterval(moveObstacles,20); console.log("Resumed");}
 
-    return !noOverlap;
-}
-
-// --- Score Update & Difficulty Increase ---
-function updateScore() {
-     if (isGameOver) return;
-    score += pointsPerIncrement;
-    if (scoreDisplay) {
-        scoreDisplay.textContent = `Score: ${score}`;
-    } else {
-        console.error("Score display element not found!");
-        clearInterval(scoreIntervalId);
-        return;
-    }
-
-    // Difficulty Increase Logic
-    let speedIncreaseSteps = Math.floor(score / scoreThresholdForSpeedIncrease);
-    let targetSpeed = BASE_OBSTACLE_SPEED + (speedIncreaseSteps * speedIncrement);
-    targetSpeed = Math.min(targetSpeed, maxObstacleSpeed);
-    if (targetSpeed > currentObstacleSpeed) {
-        currentObstacleSpeed = targetSpeed;
-    }
-}
-
-// --- Game Over Function (Handles Score Saving) ---
-function gameOver() {
-    if (isGameOver) return;
-    console.log("GAME OVER! Final Score:", score);
-    isGameOver = true;
-    clearInterval(creationIntervalId);
-    clearInterval(movementIntervalId);
-    clearInterval(scoreIntervalId);
-
-    // --- Update and Save Scores ---
-    // Recent Scores
-    recentScores.unshift(score); // Add new score to the beginning
-    recentScores = recentScores.slice(0, MAX_SCORES_STORED); // Keep only the last MAX_SCORES_STORED
-    saveScoresToStorage(RECENT_SCORES_KEY, recentScores);
-    displayScores(recentScores, recentScoresListElement); // Update display immediately
-
-    // Top Scores
-    topScores.push(score); // Add new score
-    topScores.sort((a, b) => b - a); // Sort descending (highest first)
-    topScores = topScores.slice(0, MAX_SCORES_STORED); // Keep only top MAX_SCORES_STORED
-    saveScoresToStorage(TOP_SCORES_KEY, topScores);
-    displayScores(topScores, topScoresListElement); // Update display immediately
-    // --- End Score Saving ---
-
-    // Show game over UI
-    if (gameOverMessage) gameOverMessage.style.display = 'block';
-    if (restartButton) restartButton.style.display = 'block';
-}
+// --- Game Over Function ---
+function gameOver(){if(isGameOver)return; console.log(`GAME OVER! Score:${score}`); isGameOver=true; isPaused=false; clearInterval(creationIntervalId); clearInterval(movementIntervalId); if(pauseMessage)pauseMessage.style.display='none'; recentScores.unshift(score); recentScores=recentScores.slice(0,MAX_SCORES_STORED); saveScoresToStorage(RECENT_SCORES_KEY,recentScores); displayScores(recentScores,recentScoresListElement); topScores.push(score); topScores.sort((a,b)=>b-a); topScores=topScores.slice(0,MAX_SCORES_STORED); saveScoresToStorage(TOP_SCORES_KEY,topScores); displayScores(topScores,topScoresListElement); if(gameOverMessage)gameOverMessage.style.display='block'; if(restartButton)restartButton.style.display='block';}
 
 // --- Restart Game Function ---
-function restartGame() {
-    console.log("Restarting game...");
-    startGame();
-}
+function restartGame(){console.log("Restarting..."); startGame();}
 
 // --- Initial Game Start Function ---
-function startGame() {
+function startGame(){
      console.log("Starting game...");
-
      // Calculate dimensions
-     gameAreaWidth = gameArea.offsetWidth;
-     playerWidth = player.offsetWidth;
-     if(!playerWidth || playerWidth <= 0) playerWidth = 40;
-     initialPlayerLeft = Math.floor((gameAreaWidth / 2) - (playerWidth / 2));
-
-     if (!gameAreaWidth || gameAreaWidth <= 0) {
+     gameAreaWidth = gameArea.offsetWidth; playerWidth = player.offsetWidth;
+     // Log the dimensions that were read
+     console.log(`Initial Read Dimensions -> Game Area W: ${gameAreaWidth}, Player W: ${playerWidth}`);
+     if(!playerWidth || playerWidth <= 0) {
+         console.warn(`Player width read as ${playerWidth}. Using default 50px.`);
+         playerWidth = 50; // Use correct default
+     }
+     if (!gameAreaWidth || gameAreaWidth <= 0){
          console.error("Could not get valid game area width on start!", gameAreaWidth);
-         alert("Error: Could not initialize game dimensions.");
-         return;
+         alert("Error init dimensions."); return;
      }
-
+     initialPlayerLeft = Math.floor((gameAreaWidth / 2)-(playerWidth / 2));
      // Reset state
-     isGameOver = false;
-     playerLeft = initialPlayerLeft;
-     player.style.left = playerLeft + 'px';
-     player.style.bottom = '10px';
-
-     // Reset score for current game
-     score = 0;
-     if (scoreDisplay) scoreDisplay.textContent = `Score: ${score}`;
-
-     // Reset Obstacle Speed
-     currentObstacleSpeed = BASE_OBSTACLE_SPEED;
-
-     // Reset Movement Flags
-     isMovingLeft = false;
-     isMovingRight = false;
-
+     isGameOver = false; isPaused = false; playerLeft = initialPlayerLeft; player.style.left=playerLeft+'px'; player.style.bottom='10px'; score = 0; updateScoreDisplay(); currentObstacleSpeed = BASE_OBSTACLE_SPEED; currentObstacleCreationInterval = BASE_OBSTACLE_CREATION_INTERVAL; isMovingLeft = false; isMovingRight = false;
      // Clear obstacles
-     while (obstacles.length > 0) {
-        const obstacle = obstacles.pop();
-        if (obstacle) obstacle.remove();
-     }
-     obstacles = [];
-
+     while (obstacles.length > 0){const o = obstacles.pop(); if(o) o.remove();} obstacles = [];
      // Hide messages
-     if (gameOverMessage) gameOverMessage.style.display = 'none';
-     if (restartButton) restartButton.style.display = 'none';
-
-     // Clear ALL previous intervals
-     clearInterval(creationIntervalId);
-     clearInterval(movementIntervalId);
-     clearInterval(scoreIntervalId);
-
-     // Start new intervals
-     creationIntervalId = setInterval(createObstacle, obstacleCreationInterval);
+     if (gameOverMessage) gameOverMessage.style.display = 'none'; if (restartButton) restartButton.style.display = 'none'; if (pauseMessage) pauseMessage.style.display = 'none';
+     // Clear intervals
+     clearInterval(creationIntervalId); clearInterval(movementIntervalId);
+     // Start intervals
+     creationIntervalId = setInterval(createObstacle, currentObstacleCreationInterval);
      movementIntervalId = setInterval(moveObstacles, 20);
-     scoreIntervalId = setInterval(updateScore, scoreIncrementInterval);
      console.log("Game loops started.");
-
-     // Event listeners are global
 }
 
-// --- Load Scores and Setup on DOM Ready ---
-window.addEventListener('DOMContentLoaded', (event) => {
-    // Check for essential elements
-    const essentialElements = [gameArea, player, scoreDisplay, gameOverMessage, restartButton, topScoresListElement, recentScoresListElement];
-    if (essentialElements.some(el => !el)) { // Check if any element is null
-        console.error("Essential game elements (incl. score lists) not found on DOMContentLoaded! Check IDs in HTML.");
-        alert("Error: One or more essential game elements are missing. Check HTML IDs.");
-        return;
-    }
-    console.log("DOM loaded, essential elements found.");
-
-    // Load scores from storage ONCE on page load
-    topScores = getScoresFromStorage(TOP_SCORES_KEY);
-    recentScores = getScoresFromStorage(RECENT_SCORES_KEY);
-    console.log("Loaded Top Scores:", topScores);
-    console.log("Loaded Recent Scores:", recentScores);
-
-    // Display loaded scores immediately
-    displayScores(topScores, topScoresListElement);
-    displayScores(recentScores, recentScoresListElement);
-
-    // Add listener for restart button here, after element is confirmed found
-    if(restartButton) {
-        restartButton.addEventListener('click', restartGame);
-    } else {
-        // This case should ideally be caught by the check above
-        console.error("Restart button reference missing despite passing initial check?");
-    }
-
-    // Start the first game
-    startGame();
+// --- Load Scores, Theme and Setup on DOM Ready ---
+window.addEventListener('DOMContentLoaded',(e)=>{
+    const E=[gameArea,player,scoreDisplay,gameOverMessage,restartButton,topScoresListElement,recentScoresListElement,themeSelector,resetScoresButton,confirmResetDialog,confirmResetYesButton,confirmResetNoButton,pauseMessage];
+    if(E.some(el=>!el)){console.error("Essential elements missing! Check IDs.");alert("Error loading elements.");return;} console.log("DOM loaded.");
+    loadTheme();
+    const tBtns=themeSelector.querySelectorAll('.theme-button'); tBtns.forEach(b=>b.addEventListener('click',(ev)=>applyTheme(ev.target.dataset.theme)));
+    topScores=getScoresFromStorage(TOP_SCORES_KEY); recentScores=getScoresFromStorage(RECENT_SCORES_KEY); displayScores(topScores,topScoresListElement); displayScores(recentScores,recentScoresListElement);
+    if(restartButton)restartButton.addEventListener('click',restartGame);
+    if(resetScoresButton)resetScoresButton.addEventListener('click',()=>{if(confirmResetDialog)confirmResetDialog.style.display='block';});
+    if(confirmResetNoButton)confirmResetNoButton.addEventListener('click',()=>{if(confirmResetDialog)confirmResetDialog.style.display='none';});
+    if(confirmResetYesButton)confirmResetYesButton.addEventListener('click',()=>{console.log("Resetting...");localStorage.removeItem(TOP_SCORES_KEY);localStorage.removeItem(RECENT_SCORES_KEY);topScores=[];recentScores=[];displayScores(topScores,topScoresListElement);displayScores(recentScores,recentScoresListElement);if(confirmResetDialog)confirmResetDialog.style.display='none';console.log("Scores reset.");});
+    startGame(); // Start first game
 });
 
-// Add a basic error handler
-window.onerror = function(message, source, lineno, colno, error) {
-    console.error("--- A GLOBAL JAVASCRIPT ERROR OCCURRED ---");
-    console.error("Message:", message);
-    console.error("Source:", source, `(Line: ${lineno}, Col: ${colno})`);
-    console.error("Error Object:", error);
-    console.error("------------------------------------------");
-};
+// --- Add Global Event Listeners ---
+document.addEventListener('keydown', handleSmoothKeyDown);
+document.addEventListener('keyup', handleSmoothKeyUp);
+document.addEventListener('keydown', handlePauseKey);
+
+// --- Error Handling ---
+window.onerror = function(m,s,l,c,e){console.error(`Unhandled Error: ${m} at ${s}:${l}:${c}`,e);};
